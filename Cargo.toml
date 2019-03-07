@@ -2,7 +2,15 @@
 name = "bacon-cipher"
 version = "0.1.0"
 authors = ["Aston <astonbitecode@gmail.com>"]
+description = "An implementation of the Bacon's cipher"
+license = "Apache-2.0/MIT"
+repository = "https://github.com/astonbitecode/bacon-cipher"
+readme = "README.md"
+categories = ["cryptography"]
 edition = "2018"
+
+[badges]
+travis-ci = { repository = "astonbitecode/bacon-cipher", branch = "master" }
 
 [dependencies]
 html5ever = { version = "0.22", optional = true }

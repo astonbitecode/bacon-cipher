@@ -116,7 +116,10 @@ assert!(hidden_message.starts_with("MYSECRET"));
 
 ## Licence
 
-Apache License, Version 2.0, (http://www.apache.org/licenses/LICENSE-2.0)
+At your option, under:
+
+* Apache License, Version 2.0, (http://www.apache.org/licenses/LICENSE-2.0)
+* MIT license (http://opensource.org/licenses/MIT)
 
 */
 

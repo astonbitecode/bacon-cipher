@@ -1,3 +1,4 @@
+[![crates.io](https://img.shields.io/crates/v/bacon-cipher.svg)](https://crates.io/crates/bacon-cipher)
 [![Build Status](https://travis-ci.org/astonbitecode/bacon-cipher.svg?branch=master)](https://travis-ci.org/astonbitecode/bacon-cipher)
 [![codecov](https://codecov.io/gh/astonbitecode/bacon-cipher/branch/master/graph/badge.svg)](https://codecov.io/gh/astonbitecode/bacon-cipher)
 
@@ -11,7 +12,7 @@ The crate offers codecs that _encode / decode_ and  steganographers that _hide /
 
 ### Encode a message to Bacon codes
 
-```
+```rust
 use bacon_cipher::codecs::char_codec::CharCodec;
 use bacon_cipher::BaconCodec;
 use std::iter::FromIterator;
@@ -31,7 +32,7 @@ assert_eq!("ABABBBABBABAAABAABAAAAABABAAAAAABAABAABA", encoded_string);
 
 ### Decode Bacon codes
 
-```
+```rust
 use bacon_cipher::codecs::char_codec::CharCodec;
 use bacon_cipher::BaconCodec;
 use std::iter::FromIterator;
@@ -53,7 +54,7 @@ assert_eq!("MYSECRET", string);
 
 ### Disguise a hidden message into a public one
 
-```
+```rust
 use bacon_cipher::codecs::char_codec::CharCodec;
 use bacon_cipher::stega::letter_case::LetterCaseSteganographer;
 use bacon_cipher::{BaconCodec, Steganographer};
@@ -80,7 +81,7 @@ assert!(string == "tHiS IS a PUbLic mEssAge thaT cOntains A seCreT one");
 
 ### Reveal a hidden message from a public one
 
-```
+```rust
 use bacon_cipher::codecs::char_codec::CharCodec;
 use bacon_cipher::stega::letter_case::LetterCaseSteganographer;
 use bacon_cipher::{BaconCodec, Steganographer};
@@ -104,4 +105,7 @@ assert!(hidden_message.starts_with("MYSECRET"));
 
 ## Licence
 
-Apache License, Version 2.0, (http://www.apache.org/licenses/LICENSE-2.0)
+At your option, under: 
+
+* Apache License, Version 2.0, (http://www.apache.org/licenses/LICENSE-2.0)
+* MIT license (http://opensource.org/licenses/MIT)

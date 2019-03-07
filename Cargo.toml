@@ -5,3 +5,8 @@ authors = ["Aston <astonbitecode@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+html5ever = { version = "0.22", optional = true }
+
+[features]
+# Enables the tags steganographer
+extended-steganography = ["html5ever"]

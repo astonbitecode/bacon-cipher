@@ -255,10 +255,11 @@ mod char_codec_tests {
 
     #[test]
     fn encode_chars_to_cipher_of_chars() {
-        let codec = CharCodec::new('a', 'b');
-        let encoded = codec.encode(&['M', 'y', ' ', 's', 'e', 'c', 'r', 'e', 't']);
+        let codec = CharCodec::new('A', 'B');
+        let secret: Vec<char> = "My secret".chars().collect();
+        let encoded = codec.encode(&secret);
         let string = String::from_iter(encoded.iter());
-        assert_eq!("ababbbabbabaaabaabaaaaababaaaaaabaabaaba", string);
+        assert_eq!("ABABBBABBABAAABAABAAAAABABAAAAAABAABAABA", string);
     }
 
     #[test]

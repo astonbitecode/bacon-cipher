@@ -1,7 +1,3 @@
-use html5ever::parse_document;
-use html5ever::rcdom::{Handle, NodeData, RcDom};
-use html5ever::tendril::TendrilSink;
-
 // Copyright 2019 astonbitecode
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +11,10 @@ use html5ever::tendril::TendrilSink;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use html5ever::parse_document;
+use html5ever::rcdom::{Handle, NodeData, RcDom};
+use html5ever::tendril::TendrilSink;
+
 use crate::{BaconCodec, errors, Steganographer};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,7 +128,7 @@ impl SimpleTagSteganographer {
 impl Steganographer for SimpleTagSteganographer {
     type T = char;
 
-    fn disguise<AB>(&self, secret: &[char], public: &[char], codec: &BaconCodec<ABTYPE=AB, CONTENT=char>) -> errors::Result<Vec<char>> {
+    fn disguise<AB>(&self, secret: &[char], public: &[char], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=char>) -> errors::Result<Vec<char>> {
         let encoded = codec.encode(secret);
 
         let mut disguised = String::new();
@@ -167,7 +167,7 @@ impl Steganographer for SimpleTagSteganographer {
         }
     }
 
-    fn reveal<AB>(&self, input: &[char], codec: &BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<char>> {
+    fn reveal<AB>(&self, input: &[char], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<char>> {
         let input_iter: Vec<String> = input.iter().map(|ch| ch.to_string()).collect();
         let dom = parse_document(RcDom::default(), Default::default()).from_iter(input_iter);
 
@@ -281,6 +281,7 @@ mod letter_case_tests {
         let string = String::from_iter(output.unwrap().iter());
         assert!(string == "<b>T</b>h<b>i</b>s is <b>a</b> pu<b>b</b>l<b>ic</b> <b>m</b>e<b>ss</b>a<b>ge</b> <b>tha</b>t <b>c</b>o<b>ntains</b> a <b>se</b>c<b>re</b>t <b>o</b>ne");
     }
+
     #[test]
     fn disguise_a_secret_to_a_char_array_define_a_b_tags() {
         let codec = CharCodec::new('a', 'b');

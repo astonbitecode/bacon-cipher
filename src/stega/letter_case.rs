@@ -24,7 +24,7 @@ impl LetterCaseSteganographer {
 impl Steganographer for LetterCaseSteganographer {
     type T = char;
 
-    fn disguise<AB>(&self, secret: &[char], public: &[char], codec: &BaconCodec<ABTYPE=AB, CONTENT=char>) -> errors::Result<Vec<char>> {
+    fn disguise<AB>(&self, secret: &[char], public: &[char], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=char>) -> errors::Result<Vec<char>> {
         let available_size = public.iter()
             .filter(|pc| pc.is_alphabetic())
             .count();
@@ -71,7 +71,7 @@ impl Steganographer for LetterCaseSteganographer {
         }
     }
 
-    fn reveal<AB>(&self, input: &[char], codec: &BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<char>> {
+    fn reveal<AB>(&self, input: &[char], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<char>> {
         let encoded: Vec<AB> = input.iter()
             .filter(|elem| elem.is_alphabetic())
             .map(|elem| {

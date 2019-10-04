@@ -188,8 +188,8 @@ pub trait Steganographer {
     /// by transforming a _public_ array of type `T` accordingly.
     ///
     /// The result is an array of type `T` that contains the hidden _secret_
-    fn disguise<AB>(&self, secret: &[Self::T], public: &[Self::T], codec: &BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<Self::T>>;
+    fn disguise<AB>(&self, secret: &[Self::T], public: &[Self::T], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<Self::T>>;
 
     /// Reveals the _secret_ that is hidden in an array of type `T`, using a [BaconCodec](trait.BaconCodec.html).
-    fn reveal<AB>(&self, input: &[Self::T], codec: &BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<Self::T>>;
+    fn reveal<AB>(&self, input: &[Self::T], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<Self::T>>;
 }

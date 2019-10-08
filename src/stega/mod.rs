@@ -14,3 +14,5 @@
 pub mod letter_case;
 #[cfg(feature = "extended-steganography")]
 pub mod tags;
+#[cfg(feature = "extended-steganography")]
+pub mod markdown;

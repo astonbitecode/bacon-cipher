@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::iter::FromIterator;
+
 use crate::{BaconCodec, errors, Steganographer};
 use crate::errors::BaconError;
 
@@ -68,6 +70,15 @@ impl MarkdownSteganographer {
                 bem.contains(asm) || bem.contains(aem) => {
                 Err(BaconError::SteganographerError(format!("Cannot create a marker with {:?} and {:?}", a_marker, b_marker)))
             }
+            (None, None, None, None) => {
+                Err(BaconError::SteganographerError(format!("Cannot create a marker with both A and B undefined")))
+            }
+            (Some(_), None, _, _) |
+            (None, Some(_), _, _) |
+            (_, _, Some(_), None) |
+            (_, _, None, Some(_)) => {
+                Err(BaconError::SteganographerError(format!("A marker should define both start and end")))
+            }
             _ => {
                 Ok(MarkdownSteganographer {
                     a_marker,
@@ -77,27 +88,40 @@ impl MarkdownSteganographer {
         }
     }
 
+    fn find_first_occurence_of(&self, input_type: ParsedInputType, input: &str) -> Option<usize> {
+        match input_type {
+            ParsedInputType::A => {
+                self.a_marker.start_marker.as_ref()
+                    .and_then(|start| input.find(start.as_str()))
+            }
+            ParsedInputType::B => {
+                self.b_marker.start_marker.as_ref()
+                    .and_then(|start| input.find(start.as_str()))
+            }
+            _ => None
+        }
+    }
+
     fn parse(&self, input: &str) -> Vec<ParsedInputElement> {
         let mut input = input;
         let mut input_elements: Vec<ParsedInputElement> = Vec::new();
 
         // Search for either a or b start marker
-        while let Some((start_index, parsed_input_type)) = self
-            // Get the start marker of A
-            .a_marker.start_marker.as_ref()
-            // Find the location of the start marker A
-            .and_then(|a_start| input.find(a_start.as_str()))
-            // Use the location in the loop and pass the parsed input type for A
-            .and_then(|start_index| Some((start_index, ParsedInputType::A)))
-            // If we have None from above, get the start marker of B
-            .or(self.b_marker.start_marker.as_ref()
-                .and_then(|b_start| input
-                    // Find the location of the start marker B
-                    .find(b_start.as_str())
-                    // Use the location in the loop and pass the parsed input type for B
-                    .and_then(|start_index| Some((start_index, ParsedInputType::B))))) {
+        loop {
+            // Find the first occurrence in the input
+            let a_start_index = self.find_first_occurence_of(ParsedInputType::A, input).unwrap_or(input.len());
+            let b_start_index = self.find_first_occurence_of(ParsedInputType::B, input).unwrap_or(input.len());
+
+            let (start_index, parsed_input_type) = if a_start_index < b_start_index {
+                (a_start_index, ParsedInputType::A)
+            } else if b_start_index < a_start_index {
+                (b_start_index, ParsedInputType::B)
+            } else {
+                (input.len(), ParsedInputType::Other)
+            };
+
             println!("=================");
-            println!("input: {}", input);
+            println!("input:{}", input);
             println!("start_index: {}", start_index);
             println!("parsed_input_type: {:?}", parsed_input_type);
             let start_size = match parsed_input_type {
@@ -105,8 +129,10 @@ impl MarkdownSteganographer {
                 ParsedInputType::B => self.b_marker.start_marker.as_ref().unwrap().len(),
                 _ => 0,
             };
+            println!("start size: {}", start_size);
+            // Remove the first occurence. From now on, work with tmp
             let tmp: &str = &input[(start_index + start_size)..input.len()];
-            println!("tmp: {}", tmp);
+            println!("tmp:{}", tmp);
             let (end_opt, end_size) = match parsed_input_type {
                 ParsedInputType::A => (self.a_marker.end_marker.as_ref(), self.a_marker.end_marker_string().len()),
                 ParsedInputType::B => (self.b_marker.end_marker.as_ref(), self.b_marker.end_marker_string().len()),
@@ -114,15 +140,22 @@ impl MarkdownSteganographer {
             };
             let end_index = (end_opt
                 .and_then(|end| tmp.find(end.as_str()))
-                .unwrap_or(tmp.len()) + start_size) + end_size;
+                // In the case the end marker is not found, return the end of the tmp, minus the end_size
+                // (in order not to have out of bounds error since we add the end_size after unwrap_or)
+                .unwrap_or(tmp.len() - end_size)) + end_size;
             println!("end_index: {}", end_index);
-            let input_element: &str = &input[(start_index + 1)..end_index];
-            println!("input_element: {}", input_element);
-            input_elements.push(ParsedInputElement::new(input_element.to_string(), parsed_input_type.clone()));
-            if input.len() <= end_index {
+            println!("end_size: {}", end_size);
+            if end_index > 0 {
+                let input_element: &str = &tmp[0..(end_index - end_size)];
+                println!("input_element: {}", input_element);
+                input_elements.push(ParsedInputElement::new(input_element.to_string(), parsed_input_type.clone()));
+            } else {
+                break;
+            }
+            if tmp.len() <= end_index {
                 input = "";
             } else {
-                input = &input[(end_index + end_size)..input.len()];
+                input = &tmp[end_index..tmp.len()];
             }
         }
         println!("=================");
@@ -169,27 +202,27 @@ impl Steganographer for MarkdownSteganographer {
     }
 
     fn reveal<AB>(&self, input: &[char], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<char>> {
-//        let input_string = String::from_iter(input);
-        unimplemented!();
-//        let encoded: Vec<AB> = self.parse(&input_string).iter()
-//            .map(|elem| {
-//                if elem.tp == ParsedInputType::A {
-//                    let v: Vec<AB> = elem.string.chars()
-//                        .filter(|sc| sc.is_alphabetic())
-//                        .map(|_| codec.a())
-//                        .collect();
-//                    v
-//                } else {
-//                    let v: Vec<AB> = elem.string.chars()
-//                        .filter(|sc| sc.is_alphabetic())
-//                        .map(|_| codec.b())
-//                        .collect();
-//                    v
-//                }
-//            })
-//            .flat_map(|m| m)
-//            .collect();
-//        Ok(codec.decode(&encoded))
+        let input_string: String = String::from_iter(input.iter());
+        let encoded: Vec<AB> = self.parse(&input_string).iter()
+            .map(|elem| {
+                println!("---------{:?}", elem);
+                if elem.tp == ParsedInputType::A {
+                    let v: Vec<AB> = elem.string.chars()
+                        .filter(|sc| sc.is_alphabetic())
+                        .map(|_| codec.a())
+                        .collect();
+                    v
+                } else {
+                    let v: Vec<AB> = elem.string.chars()
+                        .filter(|sc| sc.is_alphabetic())
+                        .map(|_| codec.b())
+                        .collect();
+                    v
+                }
+            })
+            .flat_map(|m| m)
+            .collect();
+        Ok(codec.decode(&encoded))
     }
 }
 
@@ -300,6 +333,42 @@ mod letter_case_tests {
                 Some("**"),
                 Some("**")));
         assert!(res.is_err());
+        let res = MarkdownSteganographer::new(
+            Marker::empty(),
+            Marker::empty());
+        assert!(res.is_err());
+        let res = MarkdownSteganographer::new(
+            Marker::new(
+                Some("**"),
+                None),
+            Marker::new(
+                Some("**"),
+                Some("**")));
+        assert!(res.is_err());
+        let res = MarkdownSteganographer::new(
+            Marker::new(
+                None,
+                Some("**")),
+            Marker::new(
+                Some("**"),
+                Some("**")));
+        assert!(res.is_err());
+        let res = MarkdownSteganographer::new(
+            Marker::new(
+                Some("**"),
+                Some("**")),
+            Marker::new(
+                None,
+                Some("**")));
+        assert!(res.is_err());
+        let res = MarkdownSteganographer::new(
+            Marker::new(
+                Some("**"),
+                Some("**")),
+            Marker::new(
+                Some("**"),
+                None));
+        assert!(res.is_err());
     }
 
     #[test]
@@ -321,7 +390,7 @@ mod letter_case_tests {
     }
 
     #[test]
-    fn disguise_a_secret_to_a_char_array_define_a_tag() {
+    fn disguise_a_secret_to_a_char_array_define_a_marker() {
         let codec = CharCodec::new('a', 'b');
         let s = MarkdownSteganographer::new(
             Marker::new(
@@ -339,7 +408,7 @@ mod letter_case_tests {
     }
 
     #[test]
-    fn disguise_a_secret_to_a_char_array_define_a_b_tags() {
+    fn disguise_a_secret_to_a_char_array_define_a_b_markers() {
         let codec = CharCodec::new('a', 'b');
         let s = MarkdownSteganographer::new(
             Marker::new(
@@ -359,7 +428,45 @@ mod letter_case_tests {
     }
 
     #[test]
+    fn reveal_a_secret_from_a_char_array_define_a_b_markers() {
+        let codec = CharCodec::new('a', 'b');
+        let s = MarkdownSteganographer::new(
+            Marker::new(
+                Some("*"),
+                Some("*")),
+            Marker::new(
+                Some("!"),
+                Some("!"))).unwrap();
+        let public = "*T*!h!*i*!s! !is! *a* !pu!*b*!l!*ic* *m*!e!*ss*!a!*ge* *tha*!t! *c*!o!*ntains* !a! *se*!c!*re*!t! *o*ne";
+        let output = s.reveal(
+            &Vec::from_iter(public.chars()),
+            &codec);
+        assert!(output.is_ok());
+        let string = String::from_iter(output.unwrap().iter());
+        assert!(string.starts_with("MYSECRET"));
+    }
+
+    #[test]
     #[ignore]
+    fn reveal_a_secret_from_a_char_array_define_a_marker() {
+        let codec = CharCodec::new('a', 'b');
+        let s = MarkdownSteganographer::new(
+            Marker::new(
+                Some("**"),
+                Some("**")),
+            Marker::empty()).unwrap();
+        let public = "**T**h**i**s is **a** pu**b**l**ic** **m**e**ss**a**ge** **tha**t **c**o**ntains** a **se**c**re**t **o**ne";
+        let output = s.reveal(
+            &Vec::from_iter(public.chars()),
+            &codec);
+        assert!(output.is_ok());
+        let string = String::from_iter(output.unwrap().iter());
+        println!("-------------{}", string);
+        assert!(string.starts_with("MYSECRET"));
+    }
+
+    // #[test]
+    // #[ignore]
     fn parse() {
         let masked = "!T!*h*!i!*s* *is* !a! *pu*!b!*l*!ic m!*e*!ss!*a*!ge tha!*t*! c!*o*!ntains !*a*! se!*c*!re!*t*! one!";
 
@@ -373,6 +480,6 @@ mod letter_case_tests {
                 Some("!")))
             .unwrap();
 
-        println!("----------------------------------{:?}", s.parse(masked));
+        let masked = "!T!*h*!i!*s* *is* !a! *pu*!b!*l*!ic m!*e*!ss!*a*!ge tha!*t*! c!*o*!ntains !*a*! se!*c*!re!*t*! one!";
     }
 }

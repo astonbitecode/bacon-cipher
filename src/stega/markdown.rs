@@ -38,6 +38,10 @@ impl Marker {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self == &Self::empty()
+    }
+
     pub fn start_marker(&self) -> &Option<String> {
         &self.start_marker
     }
@@ -120,19 +124,13 @@ impl MarkdownSteganographer {
                 (input.len(), ParsedInputType::Other)
             };
 
-            println!("=================");
-            println!("input:{}", input);
-            println!("start_index: {}", start_index);
-            println!("parsed_input_type: {:?}", parsed_input_type);
             let start_size = match parsed_input_type {
                 ParsedInputType::A => self.a_marker.start_marker.as_ref().unwrap().len(),
                 ParsedInputType::B => self.b_marker.start_marker.as_ref().unwrap().len(),
                 _ => 0,
             };
-            println!("start size: {}", start_size);
             // Remove the first occurence. From now on, work with tmp
             let tmp: &str = &input[(start_index + start_size)..input.len()];
-            println!("tmp:{}", tmp);
             let (end_opt, end_size) = match parsed_input_type {
                 ParsedInputType::A => (self.a_marker.end_marker.as_ref(), self.a_marker.end_marker_string().len()),
                 ParsedInputType::B => (self.b_marker.end_marker.as_ref(), self.b_marker.end_marker_string().len()),
@@ -143,11 +141,8 @@ impl MarkdownSteganographer {
                 // In the case the end marker is not found, return the end of the tmp, minus the end_size
                 // (in order not to have out of bounds error since we add the end_size after unwrap_or)
                 .unwrap_or(tmp.len() - end_size)) + end_size;
-            println!("end_index: {}", end_index);
-            println!("end_size: {}", end_size);
             if end_index > 0 {
                 let input_element: &str = &tmp[0..(end_index - end_size)];
-                println!("input_element: {}", input_element);
                 input_elements.push(ParsedInputElement::new(input_element.to_string(), parsed_input_type.clone()));
             } else {
                 break;
@@ -158,8 +153,45 @@ impl MarkdownSteganographer {
                 input = &tmp[end_index..tmp.len()];
             }
         }
-        println!("=================");
         input_elements
+    }
+
+
+    // If b_marker is empty, then all the characters that are not marked with a_marker, should be considered as
+    // they are marked with b_marker.
+    // Similarly, if a_marker is empty, then all the characters that are not marked with b_marker, should be considered as
+    // they are marked with a_marker.
+    // This function does exactly this: it takes the parts of `input_string`
+    // that have not be characterized as a_marker (if b_marker is None) or b_marker (if a_marker is None)
+    // and adds them to the Vec of `ParsedInputElement`s as ParsedInputType::B, or ParsedInputType::B respectively.
+    fn replace_unmarked_characters_with(input_string: String, parsed_input_elements: Vec<ParsedInputElement>, start_marker_of_parsed_input_element: &str, end_marker_of_parsed_input_element: &str, parsed_input_type: ParsedInputType) -> Vec<ParsedInputElement> {
+        let mut input_string = input_string;
+        let mut new_parsed_input_elements: Vec<ParsedInputElement> = Vec::new();
+        for pie in parsed_input_elements.into_iter() {
+            // This is the string of the ParsedInputElement that is already found
+            let parsed_input_element_string = format!("{}{}{}",
+                                                      start_marker_of_parsed_input_element,
+                                                      pie.string,
+                                                      end_marker_of_parsed_input_element);
+            // Find this string in the input_string and get its start index
+            let index = input_string.find(&parsed_input_element_string).unwrap_or(input_string.len());
+            // Get the substring of the input_string until the above index
+            let substring: &str = &input_string[0..index];
+            // For each character of the substring, create a new ParsedInputElement and push it to the Vec
+            for c in substring.chars() {
+                new_parsed_input_elements.push(ParsedInputElement::new(c.to_string(), parsed_input_type.clone()));
+            }
+            // Push the known ParsedInputElement as well to the Vec
+            new_parsed_input_elements.push(pie);
+            // Change the input string, removing part that was processed in this iteration
+            input_string = input_string.replace(&format!("{}{}", substring, parsed_input_element_string), "");
+        }
+        // Add any remaining ParsedInputElements
+        for c in input_string.chars().into_iter() {
+            new_parsed_input_elements.push(ParsedInputElement::new(c.to_string(), parsed_input_type.clone()));
+        }
+
+        new_parsed_input_elements
     }
 }
 
@@ -203,9 +235,17 @@ impl Steganographer for MarkdownSteganographer {
 
     fn reveal<AB>(&self, input: &[char], codec: &dyn BaconCodec<ABTYPE=AB, CONTENT=Self::T>) -> errors::Result<Vec<char>> {
         let input_string: String = String::from_iter(input.iter());
-        let encoded: Vec<AB> = self.parse(&input_string).iter()
+        let parsed_input_elements = self.parse(&input_string);
+        let new_parsed_input_elements: Vec<ParsedInputElement>;
+        if self.b_marker.is_empty() {
+            new_parsed_input_elements = Self::replace_unmarked_characters_with(input_string, parsed_input_elements, self.a_marker.start_marker.as_ref().unwrap_or(&"".to_string()), self.a_marker.end_marker.as_ref().unwrap_or(&"".to_string()), ParsedInputType::B);
+        } else if self.a_marker.is_empty() {
+            new_parsed_input_elements = Self::replace_unmarked_characters_with(input_string, parsed_input_elements, self.b_marker.start_marker.as_ref().unwrap_or(&"".to_string()), self.b_marker.end_marker.as_ref().unwrap_or(&"".to_string()), ParsedInputType::A);
+        } else {
+            new_parsed_input_elements = parsed_input_elements;
+        }
+        let encoded: Vec<AB> = new_parsed_input_elements.iter()
             .map(|elem| {
-                println!("---------{:?}", elem);
                 if elem.tp == ParsedInputType::A {
                     let v: Vec<AB> = elem.string.chars()
                         .filter(|sc| sc.is_alphabetic())
@@ -447,7 +487,12 @@ mod letter_case_tests {
     }
 
     #[test]
-    #[ignore]
+    fn marker_is_empty() {
+        assert!(Marker::empty().is_empty());
+        assert!(!Marker::new(Some("*"), Some("*")).is_empty());
+    }
+
+    #[test]
     fn reveal_a_secret_from_a_char_array_define_a_marker() {
         let codec = CharCodec::new('a', 'b');
         let s = MarkdownSteganographer::new(
@@ -461,25 +506,23 @@ mod letter_case_tests {
             &codec);
         assert!(output.is_ok());
         let string = String::from_iter(output.unwrap().iter());
-        println!("-------------{}", string);
         assert!(string.starts_with("MYSECRET"));
     }
 
-    // #[test]
-    // #[ignore]
-    fn parse() {
-        let masked = "!T!*h*!i!*s* *is* !a! *pu*!b!*l*!ic m!*e*!ss!*a*!ge tha!*t*! c!*o*!ntains !*a*! se!*c*!re!*t*! one!";
-
+    #[test]
+    fn reveal_a_secret_from_a_char_array_define_b_marker() {
         let codec = CharCodec::new('a', 'b');
         let s = MarkdownSteganographer::new(
+            Marker::empty(),
             Marker::new(
                 Some("*"),
-                Some("*")),
-            Marker::new(
-                Some("!"),
-                Some("!")))
-            .unwrap();
-
-        let masked = "!T!*h*!i!*s* *is* !a! *pu*!b!*l*!ic m!*e*!ss!*a*!ge tha!*t*! c!*o*!ntains !*a*! se!*c*!re!*t*! one!";
+                Some("*"))).unwrap();
+        let public = "T*h*i*s* *is* a *pu*b*l*ic m*e*ss*a*ge tha*t* c*o*ntains *a* se*c*re*t* one";
+        let output = s.reveal(
+            &Vec::from_iter(public.chars()),
+            &codec);
+        assert!(output.is_ok());
+        let string = String::from_iter(output.unwrap().iter());
+        assert!(string.starts_with("MYSECRET"));
     }
 }

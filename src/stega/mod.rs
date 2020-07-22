@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 pub mod letter_case;
+pub mod markdown;
 #[cfg(feature = "extended-steganography")]
 pub mod tags;
-#[cfg(feature = "extended-steganography")]
-pub mod markdown;

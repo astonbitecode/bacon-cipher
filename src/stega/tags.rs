@@ -213,7 +213,7 @@ enum ParsedInputType {
 }
 
 #[cfg(test)]
-mod letter_case_tests {
+mod tag_tests {
     use std::iter::FromIterator;
 
     use html5ever::parse_document;

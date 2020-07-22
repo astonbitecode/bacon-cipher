@@ -286,7 +286,7 @@ enum ParsedInputType {
 }
 
 #[cfg(test)]
-mod letter_case_tests {
+mod markdown_tests {
     use std::iter::FromIterator;
 
     use crate::codecs::char_codec::CharCodec;

@@ -18,8 +18,6 @@ addons:
 
 rust:
   - stable
-  - beta
-  - nightly
 
 script: cargo test --all-features
 
@@ -36,8 +34,7 @@ after_success:
     cd ../.. &&
     rm -rf kcov-master &&
     cargo install cargo-kcov &&
-    cargo kcov --lib --features extended-steganography -- --exclude-pattern=/.cargo,/usr/lib,/.rustup,/build --verify &&
-    bash <(curl -s https://codecov.io/bash) &&
+    cargo kcov --lib --features extended-steganography --coveralls -- --exclude-pattern=/.cargo,/usr/lib,/.rustup,/build --verify &&
     echo "Uploaded code coverage"
 
 matrix:

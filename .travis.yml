@@ -35,6 +35,10 @@ after_success:
     sudo make install &&
     cd ../.. &&
     rm -rf kcov-master &&
+    echo `pwd` &&
+    echo -------`ls -la` &&
+    echo -------`ls target` &&
+    echo -------`ls target/debug` &&
     for crate in bacon_cipher; do for file in target/debug/$crate-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; \
     kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done; done &&
     bash <(curl -s https://codecov.io/bash) &&

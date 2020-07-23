@@ -17,7 +17,35 @@
 
 An implementation of the [Bacon's cipher](https://en.wikipedia.org/wiki/Bacon%27s_cipher).
 
-The crate offers codecs that _encode / decode_ and  steganographers that _hide / reveal_ encoded messages
+The crate offers codecs that _encode / decode_ and  steganographers that _hide / reveal_ encoded messages.
+
+**Available codecs:**
+
+* CharCodec: A codec that encodes data of type `char`.
+
+    The encoding is done by substituting with two given elements (`elem_a` and `elem_b`) of type `T`.
+
+    The substitution is done using the __first__ version of the Bacon's cipher.
+
+* CharCodecV2: A codec that encodes data of type `char`.
+
+    The encoding is done by substituting with two given elements (`elem_a` and `elem_b`) of type `T`.
+
+    The substitution is done using the __second__ version of the Bacon's cipher.
+
+**Available steganographers:**
+
+* LetterCaseSteganographer: Applies steganography based on the case of the characters.
+
+    E.g. Lowercase for Bacon's element A, capital for Bacon's element B.
+
+* MarkdownSteganographer: Applies steganography based on Markdown tags that surround elements.
+
+    E.g. Sourround an element with `**` for Bacon's element A and the rest of the elements are considered as Bacon's element B.
+
+* SimpleTagSteganographer: Applies steganography based on HTML or XML tags that surround elements. (needs the feature `extended-steganography`)
+
+    E.g. Sourround an element with `<b>` and `</b>` for Bacon's element A and with `<i>` and `</i>` for Bacon's element B.
 
 ## Encoding - Decoding
 
@@ -63,7 +91,9 @@ assert_eq!("MYSECRET", string);
 
 ## Steganography
 
-### Disguise a hidden message into a public one
+### Letter case
+
+#### Disguise a hidden message into a public one
 
 ```
 use bacon_cipher::codecs::char_codec::CharCodec;
@@ -90,7 +120,7 @@ let string = String::from_iter(disguised_public.unwrap().iter());
 assert!(string == "tHiS IS a PUbLic mEssAge thaT cOntains A seCreT one");
 ```
 
-### Reveal a hidden message from a public one
+#### Reveal a hidden message from a public one
 
 ```
 use bacon_cipher::codecs::char_codec::CharCodec;
@@ -112,6 +142,70 @@ let output = s.reveal(&public_chars, &codec);
 let hidden_message = String::from_iter(output.unwrap().iter());
 assert!(hidden_message.starts_with("MYSECRET"));
 
+```
+
+### Markdown
+
+#### Disguise a hidden message into a public one
+
+```
+use bacon_cipher::codecs::char_codec::CharCodec;
+use bacon_cipher::stega::markdown::{MarkdownSteganographer, Marker};
+use bacon_cipher::{BaconCodec, Steganographer};
+use std::iter::FromIterator;
+
+// Define a Bacon Codec that encodes using the characters 'A' and 'B'
+let codec = CharCodec::new('a', 'b');
+
+// Apply steganography based on Markdown markers
+let s = MarkdownSteganographer::new(
+    Marker::empty(),
+    Marker::new(
+        Some("*"),
+        Some("*"))).unwrap();
+
+// This is the public message in which we want to hide the secret one.
+let public = "This is a public message that contains a secret one";
+
+// This is the message that we want to hide.
+let secret_chars: Vec<char> = "My secret".chars().collect();
+
+let output = s.disguise(
+    &secret_chars,
+    &Vec::from_iter(public.chars()),
+    &codec);
+let string = String::from_iter(output.unwrap().iter());
+assert!(string == "T*h*i*s* *is* a *pu*b*l*ic m*e*ss*a*ge tha*t* c*o*ntains *a* se*c*re*t* one");
+```
+
+#### Reveal a hidden message from a public one
+
+```
+use bacon_cipher::codecs::char_codec::CharCodec;
+use bacon_cipher::stega::markdown::{MarkdownSteganographer, Marker};
+use bacon_cipher::{BaconCodec, Steganographer};
+use std::iter::FromIterator;
+
+// Define a Bacon Codec that encodes using the characters 'A' and 'B'
+let codec = CharCodec::new('a', 'b');
+
+// Apply steganography based on Markdown markers
+let s = MarkdownSteganographer::new(
+    Marker::empty(),
+    Marker::new(
+        Some("*"),
+        Some("*"))).unwrap();
+
+// This is the public message that contains a hidden message
+let public = "T*h*i*s* *is* a *pu*b*l*ic m*e*ss*a*ge tha*t* c*o*ntains *a* se*c*re*t* one";
+
+// This is the hidden message
+let output = s.reveal(
+    &Vec::from_iter(public.chars()),
+    &codec);
+assert!(output.is_ok());
+let string = String::from_iter(output.unwrap().iter());
+assert!(string.starts_with("MYSECRET"));
 ```
 
 ## Licence

@@ -1,6 +1,6 @@
 [package]
 name = "bacon-cipher"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Aston <astonbitecode@gmail.com>"]
 description = "An implementation of the Bacon's cipher"
 license = "Apache-2.0/MIT"
